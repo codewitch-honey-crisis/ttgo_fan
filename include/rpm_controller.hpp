@@ -125,7 +125,7 @@ public:
             if(m_micros<=m_micros_old) return;
             // count of microseconds the last rev took
             unsigned long dur_micros = (m_micros-m_micros_old)*m_pulses_per_rev;
-            m_rpm = ((6e+7)/(float)dur_micros+.5);
+            m_rpm = ((6e+7)/(double)dur_micros+.5);
             uint32_t ms = millis();
             switch(m_state) {
                 case -2: // autodetect max rpm
