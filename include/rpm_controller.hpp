@@ -10,7 +10,6 @@ class rpm_controller final {
     uint8_t m_input_pin;
     uint8_t m_output_pin;
     uint32_t m_pulses_per_rev;
-    uint32_t m_ts;
     int m_state;
     unsigned int m_change_delay_ms;
     unsigned int m_rpm;
@@ -31,7 +30,6 @@ class rpm_controller final {
         rhs.m_initialized = false;
         m_input_pin = rhs.m_input_pin;
         m_output_pin = rhs.m_output_pin;
-        m_ts = rhs.m_ts;
         m_state = rhs.m_state;
         m_change_delay_ms = rhs.m_change_delay_ms;
         m_rpm = rhs.m_rpm;
@@ -62,7 +60,7 @@ public:
         do_move(rhs);
         return *this;
     }
-    rpm_controller(uint8_t input_pin,uint8_t output_pin, uint32_t max_rpm=0,uint32_t pulses_per_rev=2, uint32_t change_delay_ms=500,uint8_t channel = 0,unsigned int frequency=25*1000,uint8_t resolution=8) : m_initialized(false), m_input_pin(input_pin),m_output_pin(output_pin),m_pulses_per_rev(pulses_per_rev), m_ts(0), m_state(-1),m_change_delay_ms(change_delay_ms), m_rpm(0), m_micros(0),m_micros_old(0), m_channel(channel),m_resolution(resolution),m_frequency(frequency),m_max_rpm(max_rpm),m_target_rpm(0),m_target_rpm_adj(0) {
+    rpm_controller(uint8_t input_pin,uint8_t output_pin, uint32_t max_rpm=0,uint32_t pulses_per_rev=2, uint32_t change_delay_ms=500,uint8_t channel = 0,unsigned int frequency=25*1000,uint8_t resolution=8) : m_initialized(false), m_input_pin(input_pin),m_output_pin(output_pin),m_pulses_per_rev(pulses_per_rev), m_state(-1),m_change_delay_ms(change_delay_ms), m_rpm(0), m_micros(0),m_micros_old(0), m_channel(channel),m_resolution(resolution),m_frequency(frequency),m_max_rpm(max_rpm),m_target_rpm(0),m_target_rpm_adj(0) {
     }
     ~rpm_controller() {
         if(initialized()) {
@@ -74,7 +72,6 @@ public:
         if(m_state==-1) {
             m_rpm = 0;
             m_target_rpm = 0;
-            m_ts = millis();
             m_state = 0;
             m_micros = 0;
             m_micros_old = 0;
@@ -85,7 +82,7 @@ public:
             ledcAttachPin(m_output_pin,m_channel);
             if(m_max_rpm==0) {
                 m_state = -2;
-                m_target_ts = m_ts;
+                m_target_ts = millis();
             } else {
                 ledcWrite(m_channel,0);
             }
@@ -95,7 +92,7 @@ public:
         return m_state!=-1;
     }
     unsigned int rpm() const {
-        if(initialized() && m_ts!=0) {
+        if(initialized()) {
             return m_rpm;
         }
         return 0;
@@ -120,7 +117,7 @@ public:
         }
     }
     void update() {
-        if(initialized() && m_ts>0) {
+        if(initialized()) {
             // wrap around = initial or bad read:
             if(m_micros<=m_micros_old) return;
             // count of microseconds the last rev took
@@ -177,9 +174,9 @@ public:
                             --m_target_rpm_adj;
                             if(m_target_rpm_adj<0) {
                                 m_target_rpm_adj = 0;
-                                m_state = 0;
                             }
                             ledcWrite(m_channel,(uint32_t)m_target_rpm_adj);
+                            m_state = 0;
                         } else {
                             m_state = 0;
                         }
