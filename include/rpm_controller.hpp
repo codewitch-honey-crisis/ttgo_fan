@@ -174,9 +174,9 @@ public:
                             --m_target_rpm_adj;
                             if(m_target_rpm_adj<0) {
                                 m_target_rpm_adj = 0;
+                                m_state = 0;
                             }
                             ledcWrite(m_channel,(uint32_t)m_target_rpm_adj);
-                            m_state = 0;
                         } else {
                             m_state = 0;
                         }
