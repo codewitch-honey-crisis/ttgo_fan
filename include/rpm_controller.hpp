@@ -14,8 +14,8 @@ class rpm_controller final {
     int m_state;
     unsigned int m_change_delay_ms;
     unsigned int m_rpm;
-    volatile int m_micros;
-    volatile int m_micros_old;
+    volatile unsigned long m_micros;
+    volatile unsigned long m_micros_old;
     uint8_t m_channel;
     uint8_t m_resolution;
     unsigned int m_frequency;
@@ -124,7 +124,7 @@ public:
             // wrap around = initial or bad read:
             if(m_micros<=m_micros_old) return;
             // count of microseconds the last rev took
-            int dur_micros = (m_micros-m_micros_old)*m_pulses_per_rev;
+            unsigned long dur_micros = (m_micros-m_micros_old)*m_pulses_per_rev;
             m_rpm = ((6e+7)/(float)dur_micros+.5);
             uint32_t ms = millis();
             switch(m_state) {
