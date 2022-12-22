@@ -9,6 +9,7 @@ class rpm_controller final {
     bool m_initialized;
     uint8_t m_input_pin;
     uint8_t m_output_pin;
+    uint32_t m_pulses_per_rev;
     uint32_t m_ts;
     int m_state;
     unsigned int m_change_delay_ms;
@@ -58,7 +59,7 @@ public:
         do_move(rhs);
         return *this;
     }
-    rpm_controller(uint8_t input_pin,uint8_t output_pin, uint32_t max_rpm=6500,uint32_t change_delay_ms=500,uint8_t channel = 0,unsigned int frequency=25*1000,uint8_t resolution=8) : m_initialized(false), m_input_pin(input_pin),m_output_pin(output_pin) ,m_ts(0), m_state(-1),m_change_delay_ms(change_delay_ms), m_rpm(0), m_count(0),m_channel(channel),m_resolution(resolution),m_frequency(frequency),m_max_rpm(max_rpm),m_target_rpm(0),m_target_rpm_adj(0) {
+    rpm_controller(uint8_t input_pin,uint8_t output_pin, uint32_t max_rpm=0,uint32_t pulses_per_rev=2, uint32_t change_delay_ms=500,uint8_t channel = 0,unsigned int frequency=25*1000,uint8_t resolution=8) : m_initialized(false), m_input_pin(input_pin),m_output_pin(output_pin),m_pulses_per_rev(pulses_per_rev), m_ts(0), m_state(-1),m_change_delay_ms(change_delay_ms), m_rpm(0), m_count(0),m_channel(channel),m_resolution(resolution),m_frequency(frequency),m_max_rpm(max_rpm),m_target_rpm(0),m_target_rpm_adj(0) {
     }
     ~rpm_controller() {
         if(initialized()) {
@@ -119,7 +120,7 @@ public:
             uint32_t ms = millis();
             float msecs = (ms-m_ts);
             unsigned int old = m_count;
-            int ticks = (int)(m_count/2.0+.5);
+            int ticks = (int)(m_count/((float)m_pulses_per_rev)+.5);
             double frac = 60000.0/msecs;
             m_rpm=(int)(ticks*frac);
             if(ms-m_ts>=60000) {
