@@ -14,7 +14,8 @@ class rpm_controller final {
     int m_state;
     unsigned int m_change_delay_ms;
     unsigned int m_rpm;
-    volatile int m_count;
+    volatile int m_micros;
+    volatile int m_micros_old;
     uint8_t m_channel;
     uint8_t m_resolution;
     unsigned int m_frequency;
@@ -34,7 +35,8 @@ class rpm_controller final {
         m_state = rhs.m_state;
         m_change_delay_ms = rhs.m_change_delay_ms;
         m_rpm = rhs.m_rpm;
-        m_count = rhs.m_count;
+        m_micros = rhs.m_micros;
+        m_micros_old = rhs.m_micros_old;
         m_channel = rhs.m_channel;
         m_resolution = rhs.m_resolution;
         m_frequency = rhs.m_frequency;
@@ -48,7 +50,8 @@ class rpm_controller final {
 #endif
     static void handler(void* arg) {
         rpm_controller* this_ = (rpm_controller*)arg;
-        ++this_->m_count;
+        this_->m_micros_old = this_->m_micros;
+        this_->m_micros = micros();
     }
     
 public:
@@ -59,7 +62,7 @@ public:
         do_move(rhs);
         return *this;
     }
-    rpm_controller(uint8_t input_pin,uint8_t output_pin, uint32_t max_rpm=0,uint32_t pulses_per_rev=2, uint32_t change_delay_ms=500,uint8_t channel = 0,unsigned int frequency=25*1000,uint8_t resolution=8) : m_initialized(false), m_input_pin(input_pin),m_output_pin(output_pin),m_pulses_per_rev(pulses_per_rev), m_ts(0), m_state(-1),m_change_delay_ms(change_delay_ms), m_rpm(0), m_count(0),m_channel(channel),m_resolution(resolution),m_frequency(frequency),m_max_rpm(max_rpm),m_target_rpm(0),m_target_rpm_adj(0) {
+    rpm_controller(uint8_t input_pin,uint8_t output_pin, uint32_t max_rpm=0,uint32_t pulses_per_rev=2, uint32_t change_delay_ms=500,uint8_t channel = 0,unsigned int frequency=25*1000,uint8_t resolution=8) : m_initialized(false), m_input_pin(input_pin),m_output_pin(output_pin),m_pulses_per_rev(pulses_per_rev), m_ts(0), m_state(-1),m_change_delay_ms(change_delay_ms), m_rpm(0), m_micros(0),m_micros_old(0), m_channel(channel),m_resolution(resolution),m_frequency(frequency),m_max_rpm(max_rpm),m_target_rpm(0),m_target_rpm_adj(0) {
     }
     ~rpm_controller() {
         if(initialized()) {
@@ -73,7 +76,8 @@ public:
             m_target_rpm = 0;
             m_ts = millis();
             m_state = 0;
-            m_count = 0;
+            m_micros = 0;
+            m_micros_old = 0;
             m_target_rpm_adj = 0;
             m_target_ts = 0;
             attachInterruptArg(digitalPinToInterrupt(m_input_pin),handler,this,RISING);
@@ -117,16 +121,12 @@ public:
     }
     void update() {
         if(initialized() && m_ts>0) {
+            // wrap around = initial or bad read:
+            if(m_micros<=m_micros_old) return;
+            // count of microseconds the last rev took
+            int dur_micros = (m_micros-m_micros_old)*m_pulses_per_rev;
+            m_rpm = ((6e+7)/(float)dur_micros+.5);
             uint32_t ms = millis();
-            float msecs = (ms-m_ts);
-            unsigned int old = m_count;
-            int ticks = (int)(m_count/((float)m_pulses_per_rev)+.5);
-            double frac = 60000.0/msecs;
-            m_rpm=(int)(ticks*frac);
-            if(ms-m_ts>=60000) {
-                m_count -=old;
-                m_ts += 60000;
-            }
             switch(m_state) {
                 case -2: // autodetect max rpm
                     if(m_rpm==0) {
